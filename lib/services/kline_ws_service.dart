@@ -8,8 +8,8 @@ import '../models/candle.dart';
 /// Tự reconnect với exponential backoff + jitter, xoay endpoint khi lỗi.
 class KlineWsService {
   static const List<String> hosts = [
-    'wss://stream.binance.com:9443/ws',
     'wss://stream.binance.com/ws',
+    'wss://stream.binance.com:9443/ws',
     'wss://data-stream.binance.vision/ws',
   ];
 
@@ -69,6 +69,8 @@ class KlineWsService {
     try {
       final decoded = jsonDecode(raw.toString());
       if (decoded is Map<String, dynamic> && decoded['e'] == 'kline') {
+        _attempts = 0;
+        onStatus(true);
         final k = decoded['k'];
         if (k is Map<String, dynamic>) {
           onCandle(

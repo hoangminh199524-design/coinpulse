@@ -50,8 +50,9 @@ class _ChartFullScreenState extends State<ChartFullScreen> {
           listenable: controller,
           builder: (context, _) {
             final candles = controller.candles;
-            final price =
-                candles.isEmpty ? widget.coin.currentPrice : candles.last.close;
+            final price = (controller.liveConnected && candles.isNotEmpty)
+                ? candles.last.close
+                : widget.coin.currentPrice;
             return Column(
               children: [
                 Padding(

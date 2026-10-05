@@ -32,7 +32,7 @@ class AppConfig {
     this.minQuoteVolume = 5000000.0,
     this.topN = 10,
     this.alertGainThresholdPercent = 20.0,
-    this.alertThresholds = const [15.0, 20.0],
+    this.alertThresholds = const [20.0],
     this.telegramEnabled = true,
     this.telegramBotToken = '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg',
     this.telegramChatId = '-5544970151',

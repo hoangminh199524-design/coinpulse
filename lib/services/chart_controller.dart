@@ -163,6 +163,26 @@ class ChartController extends ChangeNotifier {
     _notify();
   }
 
+  /// Cập nhật giá nến hiện tại từ luồng ticker nếu chưa nhận được live kline
+  void updateLivePrice(double currentPrice) {
+    if (currentPrice <= 0 || _candles.isEmpty) return;
+    final last = _candles.last;
+    if (!last.isClosed && (last.close - currentPrice).abs() > 0.00000001) {
+      _candles[_candles.length - 1] = Candle(
+        openTime: last.openTime,
+        closeTime: last.closeTime,
+        open: last.open,
+        high: currentPrice > last.high ? currentPrice : last.high,
+        low: currentPrice < last.low ? currentPrice : last.low,
+        close: currentPrice,
+        volume: last.volume,
+        quoteVolume: last.quoteVolume,
+        isClosed: false,
+      );
+      _notify();
+    }
+  }
+
   /// Gộp danh sách nến mới vào dữ liệu hiện có theo openTime.
   @visibleForTesting
   void mergeCandles(List<Candle> incoming) {

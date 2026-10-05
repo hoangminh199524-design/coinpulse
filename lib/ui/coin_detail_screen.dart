@@ -100,9 +100,13 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
         animation: Listenable.merge([widget.coordinator, _chart]),
         builder: (context, _) {
           final coin = _latestCoin();
+          if (!_chart.liveConnected && coin.currentPrice > 0) {
+            _chart.updateLivePrice(coin.currentPrice);
+          }
           final candles = _chart.candles;
-          final livePrice =
-              candles.isEmpty ? coin.currentPrice : candles.last.close;
+          final livePrice = (_chart.liveConnected && candles.isNotEmpty)
+              ? candles.last.close
+              : coin.currentPrice;
           final isPositive = coin.priceChangePercent >= 0;
           final changeColor = isPositive ? kCandleUp : kCandleDown;
 

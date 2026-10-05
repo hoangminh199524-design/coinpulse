@@ -37,7 +37,7 @@ class SettingsRepository {
       final oldSingleThreshold = prefs.getDouble(_keyAlertThreshold);
       alertThresholds = oldSingleThreshold != null
           ? [oldSingleThreshold]
-          : const [15.0, 20.0];
+          : const [20.0];
     }
 
     final Set<String> blacklist = blacklistList != null

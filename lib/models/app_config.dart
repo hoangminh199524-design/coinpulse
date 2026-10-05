@@ -35,7 +35,7 @@ class AppConfig {
     this.alertThresholds = const [15.0, 20.0],
     this.telegramEnabled = true,
     this.telegramBotToken = '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg',
-    this.telegramChatId = '6437919028',
+    this.telegramChatId = '-5544970151',
     this.blacklistBaseAssets = const {
       'USDC',
       'FDUSD',

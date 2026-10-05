@@ -22,7 +22,7 @@ class SettingsRepository {
     final quoteAsset = prefs.getString(_keyQuoteAsset) ?? 'USDT';
     final telegramEnabled = prefs.getBool(_keyTelegramEnabled) ?? true;
     final telegramBotToken = prefs.getString(_keyTelegramBotToken) ?? '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg';
-    final telegramChatId = prefs.getString(_keyTelegramChatId) ?? '6437919028';
+    final telegramChatId = prefs.getString(_keyTelegramChatId) ?? '-5544970151';
 
     final thresholdsStrings = prefs.getStringList(_keyAlertThresholds);
     List<double> alertThresholds;

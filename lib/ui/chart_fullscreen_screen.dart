@@ -53,6 +53,9 @@ class _ChartFullScreenState extends State<ChartFullScreen> {
             final price = (controller.liveConnected && candles.isNotEmpty)
                 ? candles.last.close
                 : widget.coin.currentPrice;
+            final double livePercent = (widget.coin.openPrice > 0 && price > 0)
+                ? ((price - widget.coin.openPrice) / widget.coin.openPrice) * 100
+                : widget.coin.priceChangePercent;
             return Column(
               children: [
                 Padding(
@@ -82,6 +85,15 @@ class _ChartFullScreenState extends State<ChartFullScreen> {
                               ? kCandleDown
                               : kCandleUp,
                           fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${livePercent >= 0 ? '+' : ''}${livePercent.toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          color: livePercent >= 0 ? kCandleUp : kCandleDown,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

@@ -155,5 +155,33 @@ void main() {
       expect(controller.candles[2].openTime, 3000);
       expect(controller.candles[2].close, 13.5); // updated
     });
+
+    test('applyLiveTrade updates last candle high, low and close in real-time', () {
+      final controller = ChartController(symbol: 'BTCUSDT');
+      const c1 = Candle(
+        openTime: 1000,
+        closeTime: 1999,
+        open: 100,
+        high: 105,
+        low: 98,
+        close: 102,
+        volume: 10,
+        quoteVolume: 1020,
+        isClosed: false,
+      );
+      controller.mergeCandles([c1]);
+
+      // Higher tick
+      controller.applyLiveTrade(107.5);
+      expect(controller.candles.last.close, 107.5);
+      expect(controller.candles.last.high, 107.5);
+      expect(controller.candles.last.low, 98);
+
+      // Lower tick
+      controller.applyLiveTrade(96.0);
+      expect(controller.candles.last.close, 96.0);
+      expect(controller.candles.last.high, 107.5);
+      expect(controller.candles.last.low, 96.0);
+    });
   });
 }

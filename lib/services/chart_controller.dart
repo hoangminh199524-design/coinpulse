@@ -121,6 +121,11 @@ class ChartController extends ChangeNotifier {
         _serverOffsetMs = serverTime - DateTime.now().millisecondsSinceEpoch;
         applyLiveCandle(candle);
       },
+      onTrade: (price, serverTime) {
+        if (_disposed || gen != _generation) return;
+        _serverOffsetMs = serverTime - DateTime.now().millisecondsSinceEpoch;
+        applyLiveTrade(price);
+      },
       onStatus: (connected) {
         if (_disposed || gen != _generation) return;
         final reconnected = connected && _hasConnectedOnce;
@@ -145,6 +150,31 @@ class ChartController extends ChangeNotifier {
     } catch (_) {
       // WebSocket vẫn đang chạy; lần reconnect sau sẽ thử lại.
     }
+  }
+
+  /// Cập nhật giá tick siêu tốc theo từng giao dịch khớp lệnh (aggTrade) của Binance
+  @visibleForTesting
+  void applyLiveTrade(double price) {
+    if (_candles.isEmpty || price <= 0) return;
+    final last = _candles.last;
+    if (last.isClosed) return;
+    if ((last.close - price).abs() < 1e-9) return;
+
+    final newHigh = price > last.high ? price : last.high;
+    final newLow = price < last.low ? price : last.low;
+
+    _candles[_candles.length - 1] = Candle(
+      openTime: last.openTime,
+      closeTime: last.closeTime,
+      open: last.open,
+      high: newHigh,
+      low: newLow,
+      close: price,
+      volume: last.volume,
+      quoteVolume: last.quoteVolume,
+      isClosed: false,
+    );
+    _notify();
   }
 
   /// Áp một cây nến realtime: cập nhật nến hiện tại hoặc thêm nến mới.

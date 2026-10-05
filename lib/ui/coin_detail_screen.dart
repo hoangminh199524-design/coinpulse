@@ -107,12 +107,15 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           final livePrice = (_chart.liveConnected && candles.isNotEmpty)
               ? candles.last.close
               : coin.currentPrice;
-          final isPositive = coin.priceChangePercent >= 0;
+          final double livePercent = (coin.openPrice > 0 && livePrice > 0)
+              ? ((livePrice - coin.openPrice) / coin.openPrice) * 100
+              : coin.priceChangePercent;
+          final isPositive = livePercent >= 0;
           final changeColor = isPositive ? kCandleUp : kCandleDown;
 
           return Column(
             children: [
-              _buildHeader(coin, livePrice, changeColor),
+              _buildHeader(coin, livePrice, livePercent, changeColor),
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -154,7 +157,10 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
     );
   }
 
-  Widget _buildHeader(RankedCoin coin, double price, Color changeColor) {
+  Widget _buildHeader(RankedCoin coin, double price, double livePercent, Color changeColor) {
+    final liveHigh = price > coin.highPrice ? price : coin.highPrice;
+    final liveLow = (price < coin.lowPrice && price > 0) ? price : coin.lowPrice;
+
     return Container(
       width: double.infinity,
       color: const Color(0xFF161A22),
@@ -182,7 +188,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${coin.formattedPercent}  24H',
+                  '${livePercent >= 0 ? '+' : ''}${livePercent.toStringAsFixed(2)}%  24H',
                   style: TextStyle(
                     color: changeColor,
                     fontSize: 13,
@@ -195,8 +201,8 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           const SizedBox(height: 10),
           Row(
             children: [
-              _stat('Cao 24H', coin.highPrice.toStringAsFixed(coin.pricePrecision)),
-              _stat('Thấp 24H', coin.lowPrice.toStringAsFixed(coin.pricePrecision)),
+              _stat('Cao 24H', liveHigh.toStringAsFixed(coin.pricePrecision)),
+              _stat('Thấp 24H', liveLow.toStringAsFixed(coin.pricePrecision)),
               _stat('Vol 24H', coin.formattedVolume),
             ],
           ),

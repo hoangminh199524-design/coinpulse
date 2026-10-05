@@ -8,9 +8,9 @@ import '../models/candle.dart';
 /// Tự reconnect với exponential backoff + jitter, xoay endpoint khi lỗi.
 class KlineWsService {
   static const List<String> hosts = [
-    'wss://stream.binance.com/ws',
-    'wss://stream.binance.com:9443/ws',
-    'wss://data-stream.binance.vision/ws',
+    'wss://stream.binance.com:9443/stream?streams=',
+    'wss://data-stream.binance.vision/stream?streams=',
+    'wss://stream.binance.com/stream?streams=',
   ];
 
   final String symbol;
@@ -18,6 +18,7 @@ class KlineWsService {
 
   /// [serverTime] là event time `E` của Binance (ms), dùng để căn countdown.
   final void Function(Candle candle, int serverTime) onCandle;
+  final void Function(double price, int serverTime)? onTrade;
   final void Function(bool connected) onStatus;
 
   int _hostIndex = 0;
@@ -32,10 +33,19 @@ class KlineWsService {
     required this.symbol,
     required this.interval,
     required this.onCandle,
+    this.onTrade,
     required this.onStatus,
   });
 
-  String get _url => '${hosts[_hostIndex]}/${symbol.toLowerCase()}@kline_$interval';
+  String get _url {
+    final sym = symbol.toLowerCase();
+    final base = hosts[_hostIndex];
+    if (base.contains('streams=')) {
+      return '$base$sym@kline_$interval/$sym@aggTrade';
+    } else {
+      return '$base/$sym@kline_$interval';
+    }
+  }
 
   void connect() {
     if (_disposed) return;
@@ -68,14 +78,32 @@ class KlineWsService {
     if (_disposed) return;
     try {
       final decoded = jsonDecode(raw.toString());
-      if (decoded is Map<String, dynamic> && decoded['e'] == 'kline') {
+      if (decoded is! Map<String, dynamic>) return;
+
+      // Hỗ trợ cả Combined Streams (`stream` + `data`) và Raw Stream
+      final Map<String, dynamic> data = (decoded['data'] is Map<String, dynamic>)
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
+
+      final eventType = data['e'];
+      if (eventType == 'kline') {
         _attempts = 0;
         onStatus(true);
-        final k = decoded['k'];
+        final k = data['k'];
         if (k is Map<String, dynamic>) {
           onCandle(
             Candle.fromWsKline(k),
-            (decoded['E'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+            (data['E'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          );
+        }
+      } else if (eventType == 'aggTrade') {
+        _attempts = 0;
+        onStatus(true);
+        final p = double.tryParse(data['p']?.toString() ?? '') ?? 0.0;
+        if (p > 0 && onTrade != null) {
+          onTrade!(
+            p,
+            (data['E'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
           );
         }
       }

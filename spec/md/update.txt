@@ -1,0 +1,276 @@
+yêu cầu:
+bạn có update cho làm mấy cái này dc ko 
+// This source code is subject to the terms of the Mozilla Public License 2.0 at [https://mozilla.org/MPL/2.0/](https://mozilla.org/MPL/2.0/) // © turk_shariq //@version=5 indicator("Order Flow Imbalance Finder By Turk", "OFIF BY TURK", true, max_lines_count = 500) // Inputs { adboxcount = input.int (50, "Maximum Imb Displayed", 1, group = "Chart Customization") boxcolor = input.color(color.new(color.gray, 65), "Imbalance Box Color", inline = "customcolor", group = "Chart Customization Box") // } // Box Variables { var box[] imbboxarray = array.new_box() topimbalance = low[2] <= open[1] and high[0] >= close[1] topimbalancesize = low[2] - high[0] bottomimbalance = high[2] >= open[1] and low[0] <= close[1] bottomimbalancesize = low[0] - high[2] //} // Box Calc { f_choppedoffimb(imbboxarray) => if array.size(imbboxarray) > 0 for i = array.size(imbboxarray) - 1 to 0 by 1 cutbox = array.get(imbboxarray, i) boxhighzone = box.get_top(cutbox) boxlowzone = box.get_bottom(cutbox) boxrightzone = box.get_right(cutbox) if na or bar_index - 1 == boxrightzone and not(high > boxlowzone and low < boxlowzone or high > boxhighzone and low < boxhighzone) box.set_right(array.get(imbboxarray, i), bar_index) // } // Box Draw { if topimbalance and topimbalancesize > 0 or bottomimbalance and bottomimbalancesize > 0 boxhighzone = topimbalance and topimbalancesize > 0 ? low[2] : low[0] boxlowzone = topimbalance and topimbalancesize > 0 ? high[0] : high[2] imbbox = box.new(bar_index, boxhighzone, bar_index, boxlowzone, boxcolor, border_style = line.style_dashed, bgcolor = boxcolor) if array.size(imbboxarray) > adboxcount box.delete(array.shift(imbboxarray)) array.push(imbboxarray, imbbox) f_choppedoffimb(imbboxarray) // }
+cập nhập:
+## 9. Realtime Coin Detail Chart
+
+Khi người dùng tap vào một coin trong Top Gainers, app mở màn **Coin Detail** với candlestick chart realtime của symbol đó.
+
+### 9.1 Data source
+
+Chart sử dụng Binance Spot Kline data.
+
+Khi mở Coin Detail:
+
+1. Gọi REST Kline API để lấy dữ liệu candle lịch sử.
+2. Render chart từ dữ liệu lịch sử.
+3. Subscribe WebSocket Kline của symbol và interval đang xem.
+4. WebSocket chỉ update candle hiện tại thay vì reload toàn bộ chart.
+5. Khi candle hiện tại đóng, append candle mới vào series.
+6. Khi người dùng rời Coin Detail, unsubscribe/đóng stream chart tương ứng.
+
+Market stream `!miniTicker@arr` của Home vẫn hoạt động độc lập.
+
+Không tạo Kline WebSocket cho tất cả coin trong Top N. Chỉ subscribe realtime Kline cho coin đang được mở trong Coin Detail.
+
+### 9.2 Candle model
+
+Normalize REST Kline và WebSocket Kline về cùng một model:
+
+```text
+Candle
+- openTime
+- closeTime
+- open
+- high
+- low
+- close
+- volume
+- isClosed
+```
+
+REST và WebSocket không được tạo hai loại candle model khác nhau.
+
+### 9.3 Chart features
+
+Coin Detail chart hỗ trợ:
+
+- Candlestick chart.
+- Realtime current candle.
+- Volume.
+- Zoom / pinch.
+- Pan / scroll lịch sử.
+- Crosshair.
+- Hiển thị OHLC của candle đang chọn.
+- Current price line.
+- Load thêm candle lịch sử khi kéo về bên trái.
+- Thay đổi candle interval.
+- Landscape/full-screen nếu chart library hỗ trợ tốt.
+
+Interval dự kiến:
+
+`1m / 3m / 5m / 15m / 30m / 1h / 4h / 1d / 1w`
+
+Chart range và candle interval là hai khái niệm riêng. Không dùng chung một field cho cả hai.
+
+---
+
+## 10. Imbalance Detector
+
+Coin Detail hỗ trợ overlay **Imbalance** dựa trên OHLC candle.
+
+Đây là **price imbalance / FVG-like detector**, không phải order-flow imbalance lấy từ order book hoặc bid/ask volume.
+
+Indicator được tính local từ candle data, không cần Binance API riêng và không chạy Pine Script trong app.
+
+### 10.1 Input
+
+Detector nhận danh sách `Candle` đã normalize từ chart engine.
+
+Mỗi lần có candle mới hoặc candle liên quan được cập nhật, detector sử dụng ba candle liên tiếp:
+
+```text
+candle[i - 2]
+candle[i - 1]
+candle[i]
+```
+
+Logic phải tương đương indicator Pine Script OFIF hiện tại.
+
+Không phụ thuộc trực tiếp vào chart library.
+
+### 10.2 Detection
+
+Top imbalance:
+
+```text
+candle[i - 2].low <= candle[i - 1].open
+AND
+candle[i].high >= candle[i - 1].close
+
+size = candle[i - 2].low - candle[i].high
+
+Chỉ tạo zone khi size > 0.
+```
+
+Bottom imbalance:
+
+```text
+candle[i - 2].high >= candle[i - 1].open
+AND
+candle[i].low <= candle[i - 1].close
+
+size = candle[i].low - candle[i - 2].high
+
+Chỉ tạo zone khi size > 0.
+```
+
+Không tự thay đổi công thức này thành FVG/imbalance algorithm khác nếu chưa có yêu cầu.
+
+### 10.3 Imbalance model
+
+```text
+ImbalanceZone
+- id
+- type: top | bottom
+- topPrice
+- bottomPrice
+- startTime
+- endTime
+- active
+```
+
+`startTime` xác định vị trí bắt đầu của box.
+
+Zone đang active tiếp tục được kéo sang phải theo chart.
+
+`endTime` được set khi zone không còn cần tiếp tục kéo theo rule của indicator.
+
+### 10.4 Zone lifecycle
+
+Sau khi tạo zone:
+
+1. Add vào danh sách active imbalance.
+2. Vẽ rectangle từ `topPrice` đến `bottomPrice`.
+3. Extend rectangle sang phải khi candle mới xuất hiện.
+4. Với mỗi candle mới, kiểm tra active zones theo cùng semantics với Pine Script gốc.
+5. Khi zone đạt điều kiện kết thúc, set `active = false` và giữ `endTime`.
+6. Zone đã kết thúc không cần tiếp tục được evaluate ở các candle sau.
+
+Giới hạn số imbalance hiển thị mặc định:
+
+`50`
+
+Nếu vượt giới hạn, remove zone cũ nhất khỏi chart.
+
+Giới hạn này phải nằm trong config của indicator, không hard-code trong rendering layer.
+
+### 10.5 Realtime behavior
+
+Imbalance detector phải hoạt động với realtime candle.
+
+Flow:
+
+```text
+REST Klines
+    ↓
+Historical Candles
+    ↓
+Imbalance Detector
+    ↓
+Initial Zones
+    ↓
+Render Chart
+
+WebSocket Kline
+    ↓
+Update Current Candle
+    ↓
+Candle State
+    ↓
+Imbalance Detector
+    ↓
+Update/Create/Close Zone
+    ↓
+Chart Overlay
+```
+
+Không request lại toàn bộ Kline history chỉ để cập nhật imbalance.
+
+### 10.6 Candle close semantics
+
+Detector phải phân biệt:
+
+- candle đang hình thành;
+- candle đã đóng.
+
+Mặc định ưu tiên **confirmed imbalance từ candle đã đóng** để tránh zone xuất hiện rồi biến mất do current candle vẫn đang thay đổi.
+
+Nếu sau này muốn hiển thị imbalance chưa xác nhận, triển khai dưới dạng option riêng:
+
+```text
+Confirmed only: ON / OFF
+```
+
+Default:
+
+`Confirmed only = ON`
+
+### 10.7 UI
+
+Coin Detail có control bật/tắt overlay:
+
+```text
+Indicators
+[x] Imbalance
+```
+
+Khi OFF:
+
+- Không render imbalance box.
+- Có thể giữ kết quả detector trong memory nếu việc bật lại không gây tốn tài nguyên đáng kể.
+
+Khi ON:
+
+- Render các zone hiện có.
+- Zone mới xuất hiện tự động theo realtime candle.
+
+Không để Imbalance overlay ảnh hưởng tới dữ liệu candle hoặc ranking Top Gainers.
+
+### 10.8 Architecture
+
+Imbalance logic phải tách khỏi chart rendering:
+
+```text
+Binance REST / WebSocket
+          ↓
+      Candle Model
+          ↓
+   ┌──────┴───────┐
+   ↓              ↓
+Chart Data   Indicator Engine
+                  ↓
+           Imbalance Zones
+                  ↓
+             Chart Overlay
+```
+
+`ImbalanceDetector` nên là pure Dart logic.
+
+Không đặt detection logic trực tiếp trong Widget/UI hoặc chart renderer.
+
+Điều này cho phép sau này bổ sung các indicator độc lập như:
+
+- EMA / MA
+- RSI
+- MACD
+- Bollinger Bands
+- FVG variant khác
+
+mà không phải thay đổi Binance data-source hoặc chart core.
+
+### 10.9 Scope boundary
+
+Imbalance V1 chỉ tái tạo logic của OFIF Pine Script đã chọn.
+
+Không mặc định bổ sung:
+
+- Order book imbalance.
+- Bid/ask delta.
+- Footprint chart.
+- Cumulative Volume Delta.
+- Market depth.
+- Liquidation.
+- Futures order flow.
+
+Các tính năng trên cần nguồn dữ liệu và semantics khác với OHLC/Kline imbalance.

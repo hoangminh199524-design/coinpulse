@@ -1,0 +1,113 @@
+Điểm mình thấy cần sửa
+1. Nên gỡ các con số implementation khỏi SPEC — mình đồng ý gỡ.
+Hiện SPEC vẫn chứa buffer 30 giây / 5.000 messages và chi tiết host/stream.    SPEC-3 Đồng thời TECHNICAL đã chứa chính xác những thông số đó.    TECHNICAL
+Đây là duplication không cần thiết. Sau này đổi watchdog 10 → 15 giây rất dễ sửa TECHNICAL mà quên SPEC.
+Mình sẽ chia nguyên tắc:
+SPEC: yêu cầu hành vi.
+TECHNICAL: cách đạt hành vi + tham số kỹ thuật.
+
+Ví dụ SPEC chỉ cần:
+Quá trình seed phải buffer WebSocket để không mất delta. Buffer phải có giới hạn và init phải retry an toàn nếu vượt giới hạn.
+
+Còn:
+30 seconds / 5000 messages
+
+để TECHNICAL.
+Tương tự SPEC chỉ cần nói:
+WebSocket phải xử lý heartbeat và phát hiện stale connection.
+
+Còn ping 20s, pong 1m, watchdog 10s → TECHNICAL.
+2. TECHNICAL đang thiếu một chi tiết khá quan trọng: mapping REST → internal model.
+Bạn đã ghi mapping miniTicker rất rõ:
+o → openPrice, c → currentPrice...    TECHNICAL
+Nhưng REST /ticker/24hr chưa ghi mapping tương ứng.
+Nên thêm:
+REST ticker/24hr:
+symbol           → symbol
+openPrice        → openPrice
+lastPrice        → currentPrice
+highPrice        → highPrice
+lowPrice         → lowPrice
+quoteVolume      → quoteVolume
+closeTime        → sourceTimestamp
+
+Như vậy Codex không phải tự suy luận.
+3. Top N 5–50: mình thấy 5–50 là hợp lý, nhưng đây là product constraint chứ không phải technical constraint.
+TECHNICAL hiện quy định Top N: 5–50.    TECHNICAL
+Nếu UI Settings thực sự không cho nhập <5 hoặc >50, thì giới hạn này nên nằm trong SPEC.
+Nếu chỉ là giới hạn implementation tạm thời → TECHNICAL.
+Cá nhân mình chọn:
+Top N: 5–50, default 10
+
+và đưa vào SPEC Settings. 50 dòng trên mobile đã quá đủ cho use case này.
+4. Có một duplication nhỏ trong blacklist của SPEC.
+SPEC dòng 162 có blacklist:
+USDC, FDUSD, TUSD... EUR
+rồi dòng 167 lại có một blacklist đầy đủ hơn:
+USDC ... USDS, PYUSD, AEUR, BFUSD, XUSD, EUR.    SPEC-3
+Nên xóa danh sách ở dòng 162 và chỉ nói:
+Stablecoin/token neo giá nằm trong configurable blacklist.
+
+Default blacklist để TECHNICAL giữ một lần duy nhất.
+5. Parse JSON ngoài main thread (isolate) hơi over-specify cho V1.
+TECHNICAL đang bắt buộc isolate.    TECHNICAL
+Mình sẽ đổi thành:
+Parsing/processing không được gây jank UI. Chỉ chuyển sang isolate nếu profiling cho thấy parsing trên main isolate ảnh hưởng frame time.
+
+Với lượng ticker Binance này, không nên tự tạo complexity trước khi đo performance.
+Có một chỗ SPEC nên sửa về wording
+SPEC vẫn nói:
+WebSocket ghi đè từng symbol trong cache.    SPEC-3
+
+Câu này hơi nguy hiểm vì thực tế phải là:
+WebSocket merge normalized ticker vào symbol tương ứng nếu sourceTimestamp mới hơn.
+
+Nếu Codex hiểu “ghi đè” theo nghĩa replace object không đầy đủ thì có thể làm mất metadata lấy từ exchangeInfo.
+Rank movement giờ ổn
+Phần này sau khi sửa đã rõ:
+- First ranking = baseline.
+- Không NEW giả.
+- Badge 10 giây.
+- Thay đổi lần nữa → movement mới + reset timer.
+- Rời Top N → không badge.    SPEC-3
+Mình không sửa thêm.
+Một điểm kiến trúc nên thêm vào TECHNICAL
+Hiện TECHNICAL có ticker model nhưng chưa tách rõ market metadata với ticker state.
+Mình khuyên cache logic có hai model:
+SymbolInfo
+├── symbol
+├── baseAsset
+├── quoteAsset
+├── status
+├── permissionSets
+└── tickSize
+
+TickerState
+├── symbol
+├── openPrice
+├── currentPrice
+├── highPrice
+├── lowPrice
+├── quoteVolume
+└── sourceTimestamp
+
+Sau đó ranking:
+SymbolInfo
+     +
+TickerState
+     ↓
+Filter
+     ↓
+Ranking
+
+Cách này rất hợp với chính spec hiện tại vì exchangeInfo cung cấp metadata, còn REST ticker/WebSocket cung cấp market state. SPEC đang sử dụng cả hai nhóm để filter.    SPEC-3
+Kết luận
+Mình đánh giá hiện tại khoảng 8.5/10 và đã đủ tốt để bắt đầu code, nhưng trước khi freeze mình sẽ làm một lượt cleanup cuối:
+1. Gỡ host/stream/ping/watchdog/buffer numeric khỏi SPEC → TECHNICAL.
+2. Xóa blacklist bị duplicate trong SPEC.
+3. Thêm REST → internal model mapping vào TECHNICAL.
+4. Thêm SymbolInfo riêng khỏi TickerState.
+5. Sửa “WebSocket ghi đè cache” → merge khi timestamp mới hơn.
+6. Đưa Top N 5–50 sang SPEC vì đây là behavior của Settings.
+7. Không bắt buộc isolate nếu chưa có performance problem.
+Sau đó freeze SPEC-3.md, còn implementation thay đổi về sau chỉ chỉnh TECHNICAL.md là đẹp nhất.

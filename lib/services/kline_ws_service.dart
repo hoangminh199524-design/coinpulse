@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/candle.dart';
 
@@ -43,11 +42,7 @@ class KlineWsService {
     _cleanUp();
 
     try {
-      // pingInterval giúp phát hiện connection chết (half-open) và đóng để reconnect.
-      final channel = IOWebSocketChannel.connect(
-        Uri.parse(_url),
-        pingInterval: const Duration(seconds: 15),
-      );
+      final channel = WebSocketChannel.connect(Uri.parse(_url));
       _channel = channel;
 
       channel.ready.then((_) {

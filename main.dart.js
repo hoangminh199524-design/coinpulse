@@ -47191,7 +47191,7 @@ l=A.jl(d.h(0,"setting_telegram_enabled"))
 k=A.c_(d.h(0,"setting_telegram_bot_token"))
 if(k==null)k=u.A
 j=A.c_(d.h(0,"setting_telegram_chat_id"))
-if(j==null)j="6437919028"
+if(j==null)j="-5544970151"
 i=e.MD("setting_alert_thresholds_list")
 if(i!=null&&i.length!==0){d=t.To
 d=A.dE(new A.cd(new A.a6(i,new A.agY(),A.a2(i).i("a6<1,J?>")),d),d.i("r.E"))
@@ -97011,7 +97011,7 @@ B.MO={USDC:0,FDUSD:1,TUSD:2,DAI:3,USDP:4,USDE:5,USD1:6,USDS:7,PYUSD:8,AEUR:9,BFU
 B.PP=new A.fa(B.MO,13,t.fF)
 B.b2={}
 B.zR=new A.fa(B.b2,0,t.fF)
-B.BL=new A.mj("USDT",5e6,10,20,B.p9,B.PP,B.zR,!0,u.A,"6437919028")
+B.BL=new A.mj("USDT",5e6,10,20,B.p9,B.PP,B.zR,!0,u.A,"-5544970151")
 B.jj=new A.xT(0,"exit")
 B.mJ=new A.xT(1,"cancel")
 B.cI=new A.iA(0,"detached")

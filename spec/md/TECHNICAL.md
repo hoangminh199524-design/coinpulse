@@ -105,8 +105,11 @@ Giới hạn buffer: tối đa **30 giây** hoặc **5.000 message**. Chạm ng�
   - Bộ quản lý trạng thái `AlertService`: duy trì `_triggeredThresholds` (`Map<String, Set<double>>`) theo từng symbol.
   - Khi coin vượt qua mốc nào, hệ thống phát cảnh báo riêng cho mốc đó (`🚀 [SYMBOL] Đạt mốc +15%!`, `🔥 [SYMBOL] Vượt đỉnh +20%!`).
   - ID thông báo: `(symbol.hashCode ^ milestone.hashCode).abs() % 100000` đảm bảo không đè thông báo của mốc khác hoặc coin khác.
-  - **Cơ chế Pullback Reset**: Khi giá coin giảm dưới `mốc - 2.0%` hoặc dưới `90% của mốc`, mốc đó được tự động giải phóng (reset) để sẵn sàng báo động lại nếu coin có nhịp bật tăng tiếp theo.
   - Notification channel: `coinpulse_alert_channel` với `IMPORTANCE_HIGH`, bật rung và âm thanh thông báo nổi (heads-up notification).
+- **Cơ chế Telegram Alert Broadcast (Đẩy thông báo tới iPhone & Người thân)**:
+  - Cho phép người dùng cấu hình `Telegram Bot Token` và `Chat ID` (hoặc ID Group chat) trong màn hình Cài đặt.
+  - Khi có coin vượt ngưỡng (+15%, +20%...), ngoài việc phát thông báo cục bộ trên máy Android, `AlertService` tự động gửi HTTP POST qua Telegram Bot API (`https://api.telegram.org/bot<token>/sendMessage`).
+  - Tin nhắn Telegram đẩy trực tiếp tới iPhone, kích hoạt chuông và rung tức thời, kèm theo thông tin chi tiết (Mã coin, Giá hiện tại, % Tăng 24H, Volume 24H) và đường dẫn xem biểu đồ trực tiếp [CoinPulse Web PWA](https://hoangminh199524-design.github.io/coinpulse/).
 
 ## 9. Localization (Giao diện Tiếng Việt)
 

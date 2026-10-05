@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import '../models/app_config.dart';
 import '../models/ranked_coin.dart';
 
 class AlertService {
@@ -23,7 +25,11 @@ class AlertService {
   }
 
   /// Evaluates coins against all user-configured milestone thresholds
-  void evaluateCoins(List<RankedCoin> coins, {List<double> thresholds = const [15.0, 20.0]}) {
+  void evaluateCoins(
+    List<RankedCoin> coins, {
+    List<double> thresholds = const [15.0, 20.0],
+    AppConfig? config,
+  }) {
     if (thresholds.isEmpty) return;
     final sortedThresholds = List<double>.from(thresholds)..sort();
 
@@ -36,17 +42,62 @@ class AlertService {
         if (percent >= milestone) {
           if (!triggered.contains(milestone)) {
             triggered.add(milestone);
+            
+            // 1. Android Local Notification
             _sendAlert(
               title: '🚀 ${coin.baseAsset}/USDT chạm mốc +${milestone.toStringAsFixed(0)}%! (+${percent.toStringAsFixed(2)}%)',
               message: 'Giá: \$${coin.formattedPrice} • 24h Vol: ${coin.formattedVolume}',
               id: (symbol.hashCode ^ milestone.hashCode).abs() % 100000,
             );
+
+            // 2. Telegram Bot Broadcast (cho iPhone & Android)
+            if (config != null &&
+                config.telegramEnabled &&
+                config.telegramBotToken.isNotEmpty &&
+                config.telegramChatId.isNotEmpty) {
+              final telegramMsg = '🚀 *${coin.baseAsset}/USDT* chạm mốc *+${milestone.toStringAsFixed(0)}%*!\n\n'
+                  '📈 Biến động 24H: *+${percent.toStringAsFixed(2)}%*\n'
+                  '💰 Giá hiện tại: *\$${coin.formattedPrice}*\n'
+                  '📊 Volume 24H: *${coin.formattedVolume}*\n\n'
+                  '👉 [Mở biểu đồ CoinPulse](https://hoangminh199524-design.github.io/coinpulse/)';
+
+              sendTelegramMessage(
+                botToken: config.telegramBotToken,
+                chatId: config.telegramChatId,
+                text: telegramMsg,
+              );
+            }
           }
         } else if (percent < milestone - 2.0 || percent < milestone * 0.9) {
           // If price pulled back below milestone, reset it so future pump alerts again
           triggered.remove(milestone);
         }
       }
+    }
+  }
+
+  /// Sends a message via Telegram Bot API
+  Future<bool> sendTelegramMessage({
+    required String botToken,
+    required String chatId,
+    required String text,
+  }) async {
+    final cleanToken = botToken.trim();
+    final cleanChatId = chatId.trim();
+    if (cleanToken.isEmpty || cleanChatId.isEmpty) return false;
+
+    try {
+      final url = Uri.parse('https://api.telegram.org/bot$cleanToken/sendMessage');
+      final resp = await http.post(url, body: {
+        'chat_id': cleanChatId,
+        'text': text,
+        'parse_mode': 'Markdown',
+      });
+      debugPrint('[AlertService] Telegram response status: ${resp.statusCode}');
+      return resp.statusCode == 200;
+    } catch (e) {
+      debugPrint('[AlertService] Error sending Telegram message: $e');
+      return false;
     }
   }
 

@@ -8,6 +8,9 @@ class SettingsRepository {
   static const String _keyAlertThresholds = 'setting_alert_thresholds_list';
   static const String _keyBlacklist = 'setting_blacklist';
   static const String _keyQuoteAsset = 'setting_quote_asset';
+  static const String _keyTelegramEnabled = 'setting_telegram_enabled';
+  static const String _keyTelegramBotToken = 'setting_telegram_bot_token';
+  static const String _keyTelegramChatId = 'setting_telegram_chat_id';
 
   Future<AppConfig> loadConfig() async {
     final prefs = await SharedPreferences.getInstance();
@@ -17,6 +20,9 @@ class SettingsRepository {
     final alertThreshold = prefs.getDouble(_keyAlertThreshold) ?? 20.0;
     final blacklistList = prefs.getStringList(_keyBlacklist);
     final quoteAsset = prefs.getString(_keyQuoteAsset) ?? 'USDT';
+    final telegramEnabled = prefs.getBool(_keyTelegramEnabled) ?? true;
+    final telegramBotToken = prefs.getString(_keyTelegramBotToken) ?? '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg';
+    final telegramChatId = prefs.getString(_keyTelegramChatId) ?? '6437919028';
 
     final thresholdsStrings = prefs.getStringList(_keyAlertThresholds);
     List<double> alertThresholds;
@@ -43,6 +49,9 @@ class SettingsRepository {
       minQuoteVolume: minVol,
       alertGainThresholdPercent: alertThreshold,
       alertThresholds: alertThresholds,
+      telegramEnabled: telegramEnabled,
+      telegramBotToken: telegramBotToken,
+      telegramChatId: telegramChatId,
       blacklistBaseAssets: blacklist,
       quoteAsset: quoteAsset,
     );
@@ -62,5 +71,8 @@ class SettingsRepository {
       config.blacklistBaseAssets.map((e) => e.trim().toUpperCase()).toList(),
     );
     await prefs.setString(_keyQuoteAsset, config.quoteAsset);
+    await prefs.setBool(_keyTelegramEnabled, config.telegramEnabled);
+    await prefs.setString(_keyTelegramBotToken, config.telegramBotToken);
+    await prefs.setString(_keyTelegramChatId, config.telegramChatId);
   }
 }

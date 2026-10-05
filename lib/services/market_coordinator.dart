@@ -198,6 +198,7 @@ class MarketCoordinator extends ChangeNotifier {
     AlertService.instance.evaluateCoins(
       coins,
       thresholds: _config.alertThresholds,
+      config: _config,
     );
 
     if (_status == MarketConnectionStatus.live && coins.isEmpty) {

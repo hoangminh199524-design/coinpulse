@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/app_config.dart';
+import '../services/alert_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AppConfig initialConfig;
@@ -20,6 +21,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _minVolume;
   late Set<double> _alertThresholds;
   late Set<String> _blacklist;
+  late bool _telegramEnabled;
+  late TextEditingController _telegramTokenController;
+  late TextEditingController _telegramChatIdController;
+  bool _isSendingTest = false;
+
   final TextEditingController _addTokenController = TextEditingController();
   final TextEditingController _customThresholdController = TextEditingController();
 
@@ -45,12 +51,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _alertThresholds.addAll([15.0, 20.0]);
     }
     _blacklist = Set<String>.from(widget.initialConfig.blacklistBaseAssets);
+    _telegramEnabled = widget.initialConfig.telegramEnabled;
+    _telegramTokenController = TextEditingController(text: widget.initialConfig.telegramBotToken);
+    _telegramChatIdController = TextEditingController(text: widget.initialConfig.telegramChatId);
   }
 
   @override
   void dispose() {
     _addTokenController.dispose();
     _customThresholdController.dispose();
+    _telegramTokenController.dispose();
+    _telegramChatIdController.dispose();
     super.dispose();
   }
 
@@ -61,9 +72,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
       alertGainThresholdPercent: _alertThresholds.isNotEmpty ? _alertThresholds.first : 20.0,
       alertThresholds: (_alertThresholds.toList()..sort()),
       blacklistBaseAssets: _blacklist,
+      telegramEnabled: _telegramEnabled,
+      telegramBotToken: _telegramTokenController.text.trim(),
+      telegramChatId: _telegramChatIdController.text.trim(),
     );
     widget.onSave(updated);
     Navigator.of(context).pop();
+  }
+
+  Future<void> _testTelegram() async {
+    final token = _telegramTokenController.text.trim();
+    final chatId = _telegramChatIdController.text.trim();
+
+    if (token.isEmpty || chatId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFDA3633),
+          content: Text('Vui lòng nhập đầy đủ Bot Token và Chat ID!'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSendingTest = true);
+
+    try {
+      final success = await AlertService.instance.sendTelegramMessage(
+        botToken: token,
+        chatId: chatId,
+        text: '⚡ *CoinPulse Alert Test* ⚡\n\n'
+            '🔔 Đã kết nối thành công Telegram Bot!\n'
+            'Mỗi khi có coin vượt ngưỡng tăng trưởng (+15%, +20%...), CoinPulse sẽ tự động bắn cảnh báo vào đây.\n\n'
+            '👉 [Mở biểu đồ CoinPulse](https://hoangminh199524-design.github.io/coinpulse/)',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: success ? const Color(0xFF238636) : const Color(0xFFDA3633),
+            content: Text(
+              success
+                  ? '✅ Đã gửi tin nhắn thử nghiệm thành công! Hãy kiểm tra Telegram.'
+                  : '❌ Gửi thất bại! Hãy kiểm tra lại Token hoặc Chat ID.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingTest = false);
+      }
+    }
   }
 
   void _toggleThreshold(double val) {
@@ -287,6 +346,122 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '💡 Khi coin tăng chạm 15% bạn sẽ nhận 1 thông báo; nếu tiếp tục bay chạm 20% app sẽ gửi tiếp thông báo mốc 20%.',
                   style: TextStyle(color: Color(0xFF8B949E), fontSize: 12),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // 1b. Thông báo Telegram (Cho iPhone & Android)
+          _buildSectionHeader('THÔNG BÁO TELEGRAM (CHO IPHONE & BẠN BÈ)'),
+          _buildCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gửi cảnh báo qua Telegram',
+                            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Tự động bắn tin nhắn chuông rung sang iPhone khi có coin bay',
+                            style: TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _telegramEnabled,
+                      activeThumbColor: const Color(0xFF00E676),
+                      onChanged: (val) {
+                        setState(() {
+                          _telegramEnabled = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                if (_telegramEnabled) ...[
+                  const Divider(color: Color(0xFF30363D), height: 24),
+                  const Text(
+                    'Bot Token (từ @BotFather)',
+                    style: TextStyle(color: Color(0xFF8B949E), fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _telegramTokenController,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Nhập Bot Token',
+                      hintStyle: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                      filled: true,
+                      fillColor: const Color(0xFF0D1117),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF30363D)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF30363D)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Chat ID (từ @userinfobot hoặc ID Nhóm)',
+                    style: TextStyle(color: Color(0xFF8B949E), fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _telegramChatIdController,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Nhập Chat ID (ví dụ: 6437919028)',
+                      hintStyle: const TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                      filled: true,
+                      fillColor: const Color(0xFF0D1117),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF30363D)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF30363D)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isSendingTest ? null : _testTelegram,
+                      icon: _isSendingTest
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00E676)),
+                            )
+                          : const Icon(Icons.send_rounded, size: 16, color: Color(0xFF00E676)),
+                      label: Text(
+                        _isSendingTest ? 'Đang gửi...' : 'Gửi tin nhắn thử nghiệm',
+                        style: const TextStyle(color: Color(0xFF00E676), fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF00E676)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

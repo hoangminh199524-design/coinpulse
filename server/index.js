@@ -184,19 +184,26 @@ function evaluateTicker(ticker) {
 }
 
 // Connect Binance miniTicker WebSocket
+const WS_ENDPOINTS = [
+  'wss://stream.binance.com/ws/!miniTicker@arr',
+  'wss://data-stream.binance.vision/ws/!miniTicker@arr',
+  'wss://stream.binance.com:9443/ws/!miniTicker@arr'
+];
+let wsIndex = 0;
+
 function connectBinanceWs() {
   if (ws) {
     try { ws.terminate(); } catch (_) {}
     ws = null;
   }
 
-  const endpoint = 'wss://stream.binance.com:9443/ws/!miniTicker@arr';
+  const endpoint = WS_ENDPOINTS[wsIndex];
   console.log(`[WebSocket] Connecting to ${endpoint}...`);
 
   ws = new WebSocket(endpoint);
 
   ws.on('open', () => {
-    console.log(`[WebSocket] Connected to Binance Spot miniTicker stream!`);
+    console.log(`[WebSocket] Connected to Binance Spot miniTicker stream! (${endpoint})`);
     lastWsMessageTime = Date.now();
   });
 
@@ -215,11 +222,12 @@ function connectBinanceWs() {
   });
 
   ws.on('error', (err) => {
-    console.error(`[WebSocket Error]`, err.message);
+    console.error(`[WebSocket Error] ${endpoint}:`, err.message);
   });
 
   ws.on('close', () => {
-    console.log(`[WebSocket] Closed. Reconnecting in 3s...`);
+    console.log(`[WebSocket] Closed. Rotating host and reconnecting in 3s...`);
+    wsIndex = (wsIndex + 1) % WS_ENDPOINTS.length;
     scheduleReconnect();
   });
 }

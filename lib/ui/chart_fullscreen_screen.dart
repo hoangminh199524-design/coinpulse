@@ -117,31 +117,35 @@ class _ChartFullScreenState extends State<ChartFullScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: controller.toggleImbalance,
-                        child: Container(
-                          height: 30,
-                          padding: const EdgeInsets.symmetric(horizontal: 9),
-                          decoration: BoxDecoration(
-                            color: controller.showImbalance
-                                ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
-                                : const Color(0xFF161A22),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: controller.toggleImbalance,
+                          child: Container(
+                            height: 30,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
                               color: controller.showImbalance
-                                  ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
-                                  : const Color(0xFF262D3D),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'OFIF',
-                              style: TextStyle(
+                                  ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
+                                  : const Color(0xFF161A22),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
                                 color: controller.showImbalance
-                                    ? const Color(0xFF00B0FF)
-                                    : const Color(0xFF8B949E),
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                    ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
+                                    : const Color(0xFF262D3D),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'OFIF',
+                                style: TextStyle(
+                                  color: controller.showImbalance
+                                      ? const Color(0xFF00B0FF)
+                                      : const Color(0xFF8B949E),
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                           ),

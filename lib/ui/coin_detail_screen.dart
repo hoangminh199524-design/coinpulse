@@ -116,9 +116,9 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           return Column(
             children: [
               _buildHeader(coin, livePrice, livePercent, changeColor),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+              Container(
+                color: const Color(0xFF161A22),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 child: Row(
                   children: [
                     Expanded(
@@ -132,7 +132,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Expanded(
                 child: Container(
                   margin: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -274,41 +274,45 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
 
   Widget _buildImbalanceChip(ChartController chart) {
     final active = chart.showImbalance;
-    return GestureDetector(
-      key: const ValueKey('toggle_imbalance'),
-      onTap: chart.toggleImbalance,
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
-              : const Color(0xFF161A22),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const ValueKey('toggle_imbalance'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: chart.toggleImbalance,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          decoration: BoxDecoration(
             color: active
-                ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
-                : const Color(0xFF262D3D),
+                ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
+                : const Color(0xFF161A22),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: active
+                  ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
+                  : const Color(0xFF262D3D),
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              active ? Icons.layers : Icons.layers_outlined,
-              size: 14,
-              color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'OFIF',
-              style: TextStyle(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                active ? Icons.layers : Icons.layers_outlined,
+                size: 15,
                 color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                'OFIF',
+                style: TextStyle(
+                  color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

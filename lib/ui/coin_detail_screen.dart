@@ -274,11 +274,21 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
 
   Widget _buildImbalanceChip(ChartController chart) {
     final active = chart.showImbalance;
-    return GestureDetector(
-      key: const ValueKey('toggle_imbalance'),
+    Offset? downOffset;
+    return Listener(
       behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => chart.toggleImbalance(),
-      onTap: chart.toggleImbalance,
+      onPointerDown: (e) => downOffset = e.position,
+      onPointerUp: (e) {
+        final down = downOffset;
+        downOffset = null;
+        if (down != null && (e.position - down).distance < 20.0) {
+          chart.toggleImbalance();
+        }
+      },
+      child: GestureDetector(
+        key: const ValueKey('toggle_imbalance'),
+        behavior: HitTestBehavior.opaque,
+        onTap: chart.toggleImbalance,
       child: Container(
         height: 42,
         padding: const EdgeInsets.symmetric(horizontal: 11),
@@ -313,6 +323,7 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

@@ -154,36 +154,40 @@ function evaluateTicker(ticker) {
   }
   const triggered = triggeredThresholds.get(symbol);
 
+  // Tìm các mốc mới đạt được
+  const newMilestones = [];
   for (const milestone of THRESHOLDS) {
     if (percent >= milestone) {
       if (!triggered.has(milestone)) {
         triggered.add(milestone);
-
-        // Chỉ gửi cảnh báo sau khi warm-up xong (tránh spam 30 coin đã tăng từ trước)
-        if (isWarmedUp) {
-          const alertText = 
-            `🚀 *${baseAsset}/USDT* chạm mốc *+${milestone.toFixed(0)}%*!\n\n` +
-            `📈 Biến động 24H: *+${percent.toFixed(2)}%*\n` +
-            `💰 Giá hiện tại: *$${formatPrice(currentPrice)}*\n` +
-            `📊 Volume 24H: *${formatVolume(quoteVolume)}*\n\n` +
-            `👉 [Mở biểu đồ CoinPulse](https://hoangminh199524-design.github.io/coinpulse/)`;
-
-          console.log(`[ALERT] ${baseAsset}/USDT crossed +${milestone}% (+${percent.toFixed(2)}%)`);
-          enqueueTelegramMessage(alertText);
-
-          recentAlerts.unshift({
-            symbol: baseAsset,
-            milestone,
-            percent: percent.toFixed(2),
-            time: new Date().toISOString()
-          });
-          if (recentAlerts.length > 50) recentAlerts.pop();
-        }
+        newMilestones.push(milestone);
       }
     } else if (percent < milestone - 2.0 || percent < milestone * 0.9) {
       // Pullback reset: cho phép kích hoạt lại nếu giá hồi rồi tăng trở lại
       triggered.delete(milestone);
     }
+  }
+
+  // Nếu có mốc mới, CHỈ gửi 1 thông báo cho mốc cao nhất vừa đạt được (tránh spam 3 tin nhắn liên tiếp)
+  if (isWarmedUp && newMilestones.length > 0) {
+    const highestMilestone = newMilestones[newMilestones.length - 1];
+    const alertText = 
+      `🚀 *${baseAsset}/USDT* chạm mốc *+${highestMilestone.toFixed(0)}%*!\n\n` +
+      `📈 Biến động 24H: *+${percent.toFixed(2)}%*\n` +
+      `💰 Giá hiện tại: *$${formatPrice(currentPrice)}*\n` +
+      `📊 Volume 24H: *${formatVolume(quoteVolume)}*\n\n` +
+      `👉 [Mở biểu đồ CoinPulse](https://hoangminh199524-design.github.io/coinpulse/)`;
+
+    console.log(`[ALERT] ${baseAsset}/USDT crossed +${highestMilestone}% (+${percent.toFixed(2)}%)`);
+    enqueueTelegramMessage(alertText);
+
+    recentAlerts.unshift({
+      symbol: baseAsset,
+      milestone: highestMilestone,
+      percent: percent.toFixed(2),
+      time: new Date().toISOString()
+    });
+    if (recentAlerts.length > 50) recentAlerts.pop();
   }
 }
 

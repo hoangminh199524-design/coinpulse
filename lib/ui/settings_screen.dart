@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/app_config.dart';
 import '../services/alert_service.dart';
+import '../services/push_notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AppConfig initialConfig;
@@ -25,6 +26,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _telegramTokenController;
   late TextEditingController _telegramChatIdController;
   bool _isSendingTest = false;
+
+  bool _isWebPushSupported = false;
+  bool _isWebPushSubscribed = false;
+  bool _isWebPushLoading = false;
+  bool _isWebPushTesting = false;
 
   final TextEditingController _addTokenController = TextEditingController();
   final TextEditingController _customThresholdController = TextEditingController();
@@ -54,6 +60,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _telegramEnabled = widget.initialConfig.telegramEnabled;
     _telegramTokenController = TextEditingController(text: widget.initialConfig.telegramBotToken);
     _telegramChatIdController = TextEditingController(text: widget.initialConfig.telegramChatId);
+    _checkWebPushStatus();
+  }
+
+  Future<void> _checkWebPushStatus() async {
+    final supported = await PushNotificationService.isSupported();
+    if (!mounted) return;
+    setState(() {
+      _isWebPushSupported = supported;
+    });
+    if (supported) {
+      final subscribed = await PushNotificationService.isSubscribed();
+      if (!mounted) return;
+      setState(() {
+        _isWebPushSubscribed = subscribed;
+      });
+    }
+  }
+
+  Future<void> _toggleWebPush(bool enable) async {
+    setState(() => _isWebPushLoading = true);
+    try {
+      if (enable) {
+        final res = await PushNotificationService.subscribe();
+        final success = res['success'] == true;
+        if (mounted) {
+          setState(() {
+            _isWebPushSubscribed = success;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: success ? const Color(0xFF238636) : const Color(0xFFDA3633),
+              content: Text(
+                success
+                    ? '🔔 Đã bật thông báo trực tiếp trên iPhone thành công!'
+                    : '❌ Không thể bật thông báo: ${res['error'] ?? 'Lỗi không xác định'}',
+              ),
+            ),
+          );
+        }
+      } else {
+        await PushNotificationService.unsubscribe();
+        if (mounted) {
+          setState(() {
+            _isWebPushSubscribed = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Color(0xFF21262D),
+              content: Text('Đã tắt thông báo đẩy trên thiết bị này.'),
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWebPushLoading = false);
+      }
+    }
+  }
+
+  Future<void> _testWebPush() async {
+    setState(() => _isWebPushTesting = true);
+    try {
+      final res = await PushNotificationService.sendTestPush();
+      final success = res['success'] == true;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: success ? const Color(0xFF238636) : const Color(0xFFDA3633),
+            content: Text(
+              success
+                  ? '⚡ Đã gửi thông báo thử nghiệm! Hãy kiểm tra màn hình khóa hoặc thanh thông báo iPhone.'
+                  : '❌ Gửi thử nghiệm thất bại: ${res['error'] ?? 'Lỗi kết nối máy chủ'}',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWebPushTesting = false);
+      }
+    }
   }
 
   @override
@@ -349,9 +437,136 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
+          // 1b. Thông báo trực tiếp trên iPhone (Apple Web Push)
+          _buildSectionHeader('THÔNG BÁO TRỰC TIẾP TRÊN IPHONE (APPLE WEB PUSH)'),
+          _buildCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bật thông báo trên iPhone',
+                            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Chuông rung & banner màn hình khóa không cần Telegram',
+                            style: TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isWebPushLoading)
+                      const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00E676)),
+                      )
+                    else
+                      Switch(
+                        value: _isWebPushSubscribed,
+                        activeThumbColor: const Color(0xFF00E676),
+                        onChanged: (val) => _toggleWebPush(val),
+                      ),
+                  ],
+                ),
+                if (_isWebPushSubscribed) ...[
+                  const Divider(color: Color(0xFF30363D), height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00E676).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF00E676).withValues(alpha: 0.3)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.check_circle_outline, color: Color(0xFF00E676), size: 18),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Thiết bị đã sẵn sàng! Khi có coin bay chạm mốc, iPhone sẽ đổ chuông & hiện thông báo.',
+                            style: TextStyle(color: Color(0xFF00E676), fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isWebPushTesting ? null : _testWebPush,
+                      icon: _isWebPushTesting
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00E676)),
+                            )
+                          : const Icon(Icons.notifications_active_rounded, size: 16, color: Color(0xFF00E676)),
+                      label: Text(
+                        _isWebPushTesting ? 'Đang gửi...' : 'Test chuông & banner trên iPhone',
+                        style: const TextStyle(color: Color(0xFF00E676), fontWeight: FontWeight.w600),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF00E676)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ] else if (!_isWebPushSupported) ...[
+                  const Divider(color: Color(0xFF30363D), height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D1117),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF30363D)),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.apple, color: Colors.white, size: 16),
+                            SizedBox(width: 6),
+                            Text(
+                              'Dành riêng cho iPhone (iOS 16.4+):',
+                              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 6),
+                        Text(
+                          'Apple chỉ cho phép thông báo khi web được thêm vào Màn hình chính:\n'
+                          '1. Mở trang này bằng trình duyệt Safari.\n'
+                          '2. Bấm nút Chia sẻ (biểu tượng ⬆️) -> Chọn "Thêm vào MH chính".\n'
+                          '3. Mở CoinPulse từ icon ngoài màn hình chính để bật thông báo chuông rung.',
+                          style: TextStyle(color: Color(0xFF8B949E), fontSize: 11, height: 1.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  const Divider(color: Color(0xFF30363D), height: 20),
+                  const Text(
+                    '💡 Gạt bật công tắc phía trên để iPhone cấp quyền hiển thị banner và chuông rung khi có biến động.',
+                    style: TextStyle(color: Color(0xFF8B949E), fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
 
-          // 1b. Thông báo Telegram (Cho iPhone & Android)
+          // 1c. Thông báo Telegram (Cho iPhone & Android)
           _buildSectionHeader('THÔNG BÁO TELEGRAM (CHO IPHONE & BẠN BÈ)'),
           _buildCard(
             child: Column(

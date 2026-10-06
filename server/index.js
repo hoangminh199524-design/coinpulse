@@ -2,9 +2,75 @@ const express = require('express');
 const WebSocket = require('ws');
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const webpush = require('web-push');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Web Push / VAPID Configuration for iOS & Web
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BENmGLIbilRMllMxBNrbhNnxEXLjtjZ-4j2rNAu3fu8FrOvlwQt-f5bpNnvLDGksP5LfDd7ueAK_pw0-b80PHxk';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'x8N3mCLWDepiR8q8ijPwhHiPMIQTRfPdsuaQeIMZfqc';
+const VAPID_SUBJECT = 'mailto:admin@coinpulse.app';
+
+webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+const SUBSCRIPTIONS_FILE = path.join(__dirname, 'subscriptions.json');
+let pushSubscriptions = [];
+try {
+  if (fs.existsSync(SUBSCRIPTIONS_FILE)) {
+    pushSubscriptions = JSON.parse(fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8'));
+  }
+} catch (_) {
+  pushSubscriptions = [];
+}
+
+function saveSubscriptions() {
+  try {
+    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(pushSubscriptions, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[WebPush] Error saving subscriptions:', err.message);
+  }
+}
+
+async function broadcastWebPush(payload) {
+  if (pushSubscriptions.length === 0) return 0;
+  const payloadStr = JSON.stringify(payload);
+  let sentCount = 0;
+  const expiredEndpoints = new Set();
+
+  await Promise.all(pushSubscriptions.map(async (sub) => {
+    try {
+      await webpush.sendNotification(sub, payloadStr);
+      sentCount++;
+    } catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        console.log(`[WebPush] Expired subscription: ${sub.endpoint ? sub.endpoint.slice(-15) : 'unknown'}`);
+        expiredEndpoints.add(sub.endpoint);
+      } else {
+        console.error(`[WebPush Error] ${err.statusCode || err.message}`);
+      }
+    }
+  }));
+
+  if (expiredEndpoints.size > 0) {
+    pushSubscriptions = pushSubscriptions.filter(s => !expiredEndpoints.has(s.endpoint));
+    saveSubscriptions();
+  }
+  return sentCount;
+}
+
+app.use(express.json());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Configuration
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg';
@@ -180,6 +246,11 @@ function evaluateTicker(ticker) {
 
     console.log(`[ALERT] ${baseAsset}/USDT crossed +${highestMilestone}% (+${percent.toFixed(2)}%)`);
     enqueueTelegramMessage(alertText);
+    broadcastWebPush({
+      title: `🚀 ${baseAsset}/USDT +${highestMilestone.toFixed(0)}%!`,
+      body: `Giá: $${formatPrice(currentPrice)} (+${percent.toFixed(2)}%) • Vol: ${formatVolume(quoteVolume)}`,
+      url: `https://hoangminh199524-design.github.io/coinpulse/`
+    });
 
     recentAlerts.unshift({
       symbol: baseAsset,
@@ -390,6 +461,45 @@ if (selfUrl) {
   }, 10 * 60 * 1000); // 10 minutes
 }
 
+// Web Push Endpoints
+app.get('/api/vapid-public-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/subscribe', (req, res) => {
+  const sub = req.body;
+  if (!sub || !sub.endpoint) {
+    return res.status(400).json({ error: 'Invalid subscription object' });
+  }
+  const exists = pushSubscriptions.some(s => s.endpoint === sub.endpoint);
+  if (!exists) {
+    pushSubscriptions.push(sub);
+    saveSubscriptions();
+    console.log(`[WebPush] New subscriber registered! Total active: ${pushSubscriptions.length}`);
+  }
+  res.json({ success: true, count: pushSubscriptions.length });
+});
+
+app.post('/api/unsubscribe', (req, res) => {
+  const { endpoint } = req.body;
+  if (endpoint) {
+    pushSubscriptions = pushSubscriptions.filter(s => s.endpoint !== endpoint);
+    saveSubscriptions();
+    console.log(`[WebPush] Subscriber unregistered. Total active: ${pushSubscriptions.length}`);
+  }
+  res.json({ success: true, count: pushSubscriptions.length });
+});
+
+app.post('/api/test-push', async (req, res) => {
+  const count = await broadcastWebPush({
+    title: '⚡ CoinPulse Thông Báo Trực Tiếp',
+    body: '🔔 Kết nối thành công! iPhone của bạn sẽ nhận thông báo khi có coin chạm mốc 10%, 15%, 20%.',
+    url: 'https://hoangminh199524-design.github.io/coinpulse/'
+  });
+  console.log(`[WebPush] Test push dispatched to ${count} devices.`);
+  res.json({ success: true, sentTo: count });
+});
+
 // Web Health check endpoint
 app.get('/', (req, res) => {
   const uptimeSec = Math.floor((Date.now() - startTime) / 1000);
@@ -399,6 +509,7 @@ app.get('/', (req, res) => {
     trackedThresholds: THRESHOLDS.map(t => `+${t}%`),
     minVolume: `$${(MIN_VOLUME / 1e6).toFixed(1)}M`,
     telegramChatId: CHAT_ID,
+    webPushSubscribers: pushSubscriptions.length,
     wsConnected: ws && ws.readyState === WebSocket.OPEN,
     uptime: formatUptime(uptimeSec),
     uptimeSeconds: uptimeSec,

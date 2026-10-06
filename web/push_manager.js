@@ -15,17 +15,21 @@ window.CoinPulsePush = {
   isSubscribed: async function() {
     if (!this.isSupported()) return false;
     try {
+      if (Notification.permission !== 'granted') {
+        localStorage.removeItem('coinpulse_push_subscribed');
+        return false;
+      }
       var regs = await navigator.serviceWorker.getRegistrations();
       for (var reg of regs) {
-        if (reg.active && reg.active.scriptURL.includes('sw.js')) {
+        if (reg.pushManager) {
           var sub = await reg.pushManager.getSubscription();
-          if (sub) return true;
+          if (sub) {
+            localStorage.setItem('coinpulse_push_subscribed', 'true');
+            return true;
+          }
         }
       }
-      var reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) return false;
-      var sub = await reg.pushManager.getSubscription();
-      return sub !== null;
+      return localStorage.getItem('coinpulse_push_subscribed') === 'true';
     } catch (_) {
       return false;
     }
@@ -44,16 +48,17 @@ window.CoinPulsePush = {
 
   subscribe: async function() {
     if (!this.isSupported()) {
-      return { success: false, error: 'Thiết bị chưa hỗ trợ Web Push (yêu cầu thêm vào Màn hình chính trên iOS 16.4+).' };
+      return { success: false, error: 'Thiết bị chưa hỗ trợ Web Push. Vui lòng mở bằng Safari và chọn "Thêm vào MH chính" (Add to Home Screen) trên iOS 16.4+.' };
     }
 
     var perm = await Notification.requestPermission();
     if (perm !== 'granted') {
-      return { success: false, error: 'Chưa cấp quyền thông báo (' + perm + ').' };
+      localStorage.removeItem('coinpulse_push_subscribed');
+      return { success: false, error: 'Chưa cấp quyền thông báo. Vui lòng vào Cài đặt iPhone > Thông báo > CoinPulse để Cho phép thông báo.' };
     }
 
     try {
-      var reg = await navigator.serviceWorker.register('sw.js?v=20261006_V1');
+      var reg = await navigator.serviceWorker.register('sw.js?v=20261006_V2');
       await navigator.serviceWorker.ready;
 
       var keyRes = await fetch(this.SERVER_URL + '/api/vapid-public-key');
@@ -71,6 +76,7 @@ window.CoinPulsePush = {
         body: JSON.stringify(subscription)
       });
       var resData = await subRes.json();
+      localStorage.setItem('coinpulse_push_subscribed', 'true');
       return { success: true, count: resData.count };
     } catch (err) {
       console.error('[WebPush Error]', err);
@@ -81,18 +87,21 @@ window.CoinPulsePush = {
   unsubscribe: async function() {
     if (!this.isSupported()) return { success: false };
     try {
+      localStorage.removeItem('coinpulse_push_subscribed');
       var regs = await navigator.serviceWorker.getRegistrations();
       for (var reg of regs) {
-        var sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          try {
-            await fetch(this.SERVER_URL + '/api/unsubscribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ endpoint: sub.endpoint })
-            });
-          } catch (_) {}
-          await sub.unsubscribe();
+        if (reg.pushManager) {
+          var sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            try {
+              await fetch(this.SERVER_URL + '/api/unsubscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ endpoint: sub.endpoint })
+              });
+            } catch (_) {}
+            await sub.unsubscribe();
+          }
         }
       }
       return { success: true };

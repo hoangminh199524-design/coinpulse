@@ -42,7 +42,14 @@ async function broadcastWebPush(payload) {
 
   await Promise.all(pushSubscriptions.map(async (sub) => {
     try {
-      await webpush.sendNotification(sub, payloadStr);
+      await webpush.sendNotification(sub, payloadStr, {
+        TTL: 86400,
+        urgency: 'high',
+        headers: {
+          'Urgency': 'high',
+          'Topic': 'coinpulse_alert'
+        }
+      });
       sentCount++;
     } catch (err) {
       if (err.statusCode === 404 || err.statusCode === 410) {

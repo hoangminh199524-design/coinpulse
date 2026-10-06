@@ -153,8 +153,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
-  void _save() {
-    final updated = widget.initialConfig.copyWith(
+  AppConfig _buildUpdatedConfig() {
+    return widget.initialConfig.copyWith(
       topN: _topN,
       minQuoteVolume: _minVolume,
       alertGainThresholdPercent: _alertThresholds.isNotEmpty ? _alertThresholds.first : 20.0,
@@ -164,7 +164,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       telegramBotToken: _telegramTokenController.text.trim(),
       telegramChatId: _telegramChatIdController.text.trim(),
     );
+  }
+
+  void _saveSilently() {
+    final updated = _buildUpdatedConfig();
     widget.onSave(updated);
+  }
+
+  void _save() {
+    _saveSilently();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        backgroundColor: Color(0xFF238636),
+        content: Text('✅ Đã lưu cài đặt thành công!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
     Navigator.of(context).pop();
   }
 
@@ -234,6 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _alertThresholds.add(val);
       }
     });
+    _saveSilently();
   }
 
   void _addCustomThreshold() {
@@ -244,6 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _alertThresholds.add(val);
         _customThresholdController.clear();
       });
+      _saveSilently();
     }
   }
 
@@ -254,6 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _blacklist.add(token);
         _addTokenController.clear();
       });
+      _saveSilently();
     }
   }
 
@@ -261,8 +279,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final sortedSelected = _alertThresholds.toList()..sort();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D1117),
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) {
+          _saveSilently();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF0D1117),
       appBar: AppBar(
         backgroundColor: const Color(0xFF161A22),
         elevation: 0,
@@ -598,6 +623,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() {
                           _telegramEnabled = val;
                         });
+                        _saveSilently();
                       },
                     ),
                   ],
@@ -719,6 +745,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _topN = val.round();
                     });
                   },
+                  onChangeEnd: (_) => _saveSilently(),
                 ),
                 const Center(
                   child: Text(
@@ -830,6 +857,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() {
                           _blacklist.remove(token);
                         });
+                        _saveSilently();
                       },
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
@@ -869,7 +897,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildPresetButton(double val, String label) {
@@ -879,6 +907,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         setState(() {
           _minVolume = val;
         });
+        _saveSilently();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

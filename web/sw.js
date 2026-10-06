@@ -32,17 +32,28 @@ self.addEventListener('push', function(event) {
     data: {
       url: payload.url || './'
     },
-    tag: payload.title,
-    renotify: true
+    tag: 'alert_' + Date.now(),
+    renotify: true,
+    silent: false,
+    requireInteraction: false
   };
 
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    self.registration.showNotification(title, options).then(function() {
+      if ('setAppBadge' in navigator) {
+        return navigator.setAppBadge();
+      }
+    }).catch(function(err) {
+      console.error('[SW showNotification error]', err);
+    })
   );
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(function() {});
+  }
   const targetUrl = (event.notification.data && event.notification.data.url)
     ? event.notification.data.url
     : './';

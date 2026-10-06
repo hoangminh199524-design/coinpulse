@@ -50,10 +50,13 @@ class MarketCoordinator extends ChangeNotifier {
   List<RankedCoin> get rankedCoins => List.unmodifiable(_rankedCoins);
   DateTime? get lastSnapshotTime => _lastSnapshotTime;
 
-  Future<void> initialize() async {
+  Future<void> loadConfig() async {
     _config = await _settingsRepository.loadConfig();
     notifyListeners();
+  }
 
+  Future<void> initialize() async {
+    await loadConfig();
     unawaited(AlertService.instance.initialize());
 
     _startUiRefreshLoop();

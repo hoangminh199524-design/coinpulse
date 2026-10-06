@@ -19,6 +19,7 @@ void main() {
     );
 
     final coordinator = MarketCoordinator();
+    await coordinator.loadConfig();
     runApp(CoinPulseApp(coordinator: coordinator));
     unawaited(coordinator.initialize());
   }, (error, stack) {

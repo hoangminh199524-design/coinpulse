@@ -79,4 +79,53 @@ class AppConfig {
       excludedSymbols: excludedSymbols ?? this.excludedSymbols,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'quoteAsset': quoteAsset,
+      'minQuoteVolume': minQuoteVolume,
+      'topN': topN,
+      'alertGainThresholdPercent': alertGainThresholdPercent,
+      'alertThresholds': alertThresholds,
+      'telegramEnabled': telegramEnabled,
+      'telegramBotToken': telegramBotToken,
+      'telegramChatId': telegramChatId,
+      'blacklistBaseAssets': blacklistBaseAssets.toList(),
+      'excludedSymbols': excludedSymbols.toList(),
+    };
+  }
+
+  factory AppConfig.fromJson(Map<String, dynamic> json) {
+    final rawThresholds = json['alertThresholds'];
+    List<double> thresholds = const [15.0, 20.0];
+    if (rawThresholds is List) {
+      thresholds = rawThresholds
+          .map((e) => (e is num) ? e.toDouble() : double.tryParse(e.toString()))
+          .whereType<double>()
+          .toList()
+        ..sort();
+    }
+    if (thresholds.isEmpty) {
+      thresholds = const [15.0, 20.0];
+    }
+
+    final rawBlacklist = json['blacklistBaseAssets'];
+    Set<String> blacklist = Set<String>.from(AppConfig.defaultBlacklist);
+    if (rawBlacklist is List) {
+      blacklist = rawBlacklist.map((e) => e.toString().trim().toUpperCase()).where((e) => e.isNotEmpty).toSet();
+    }
+
+    return AppConfig(
+      quoteAsset: json['quoteAsset'] as String? ?? 'USDT',
+      minQuoteVolume: (json['minQuoteVolume'] as num?)?.toDouble() ?? 5000000.0,
+      topN: ((json['topN'] as num?)?.toInt() ?? 10).clamp(5, 50),
+      alertGainThresholdPercent: (json['alertGainThresholdPercent'] as num?)?.toDouble() ?? (thresholds.isNotEmpty ? thresholds.first : 20.0),
+      alertThresholds: thresholds,
+      telegramEnabled: json['telegramEnabled'] as bool? ?? true,
+      telegramBotToken: json['telegramBotToken'] as String? ?? '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg',
+      telegramChatId: json['telegramChatId'] as String? ?? '-5544970151',
+      blacklistBaseAssets: blacklist,
+      excludedSymbols: (json['excludedSymbols'] as List?)?.map((e) => e.toString()).toSet() ?? const {},
+    );
+  }
 }

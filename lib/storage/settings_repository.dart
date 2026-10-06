@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_config.dart';
+import 'web_storage.dart';
 
 class SettingsRepository {
+  static const String _keyJsonConfig = 'coinpulse_app_config_json';
   static const String _keyTopN = 'setting_top_n';
   static const String _keyMinVolume = 'setting_min_volume';
   static const String _keyAlertThreshold = 'setting_alert_threshold';
@@ -13,8 +16,30 @@ class SettingsRepository {
   static const String _keyTelegramChatId = 'setting_telegram_chat_id';
 
   Future<AppConfig> loadConfig() async {
-    final prefs = await SharedPreferences.getInstance();
+    // 1. Check direct WebStorage (instant synchronous localStorage on Web)
+    try {
+      final webJson = WebStorage.getItem(_keyJsonConfig);
+      if (webJson != null && webJson.isNotEmpty) {
+        final decoded = jsonDecode(webJson) as Map<String, dynamic>;
+        return AppConfig.fromJson(decoded);
+      }
+    } catch (_) {}
 
+    // 2. Check SharedPreferences with fresh reload
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+
+    final jsonStr = prefs.getString(_keyJsonConfig);
+    if (jsonStr != null && jsonStr.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+        return AppConfig.fromJson(decoded);
+      } catch (_) {}
+    }
+
+    // 3. Fallback to legacy individual keys
     final topN = prefs.getInt(_keyTopN) ?? 10;
     final minVol = prefs.getDouble(_keyMinVolume) ?? 5000000.0;
     final alertThreshold = prefs.getDouble(_keyAlertThreshold) ?? 20.0;
@@ -37,7 +62,7 @@ class SettingsRepository {
       final oldSingleThreshold = prefs.getDouble(_keyAlertThreshold);
       alertThresholds = oldSingleThreshold != null
           ? [oldSingleThreshold]
-          : const [20.0];
+          : const [15.0, 20.0];
     }
 
     final Set<String> blacklist = blacklistList != null
@@ -58,7 +83,14 @@ class SettingsRepository {
   }
 
   Future<void> saveConfig(AppConfig config) async {
+    final jsonStr = jsonEncode(config.toJson());
+
+    // 1. Immediately write to WebStorage (synchronous, direct localStorage)
+    WebStorage.setItem(_keyJsonConfig, jsonStr);
+
+    // 2. Also persist to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyJsonConfig, jsonStr);
     await prefs.setInt(_keyTopN, config.topN.clamp(5, 50));
     await prefs.setDouble(_keyMinVolume, config.minQuoteVolume);
     await prefs.setDouble(_keyAlertThreshold, config.alertGainThresholdPercent);

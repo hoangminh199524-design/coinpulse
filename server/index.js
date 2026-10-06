@@ -9,7 +9,11 @@ const PORT = process.env.PORT || 3000;
 // Configuration
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8696394019:AAEN_9-u1gIly8O39WmTMJ9wuV_uBO7VfKg';
 let CHAT_ID = process.env.TELEGRAM_CHAT_ID || '-5544970151'; // Group: Minh và Đạt
-let THRESHOLDS = (process.env.THRESHOLDS || '10, 15, 20')
+let envThresholds = process.env.THRESHOLDS;
+if (!envThresholds || envThresholds === '20.0' || envThresholds === '20') {
+  envThresholds = '10, 15, 20';
+}
+let THRESHOLDS = envThresholds
   .split(',')
   .map(s => parseFloat(s.trim()))
   .filter(n => !isNaN(n))

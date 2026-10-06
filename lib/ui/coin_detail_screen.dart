@@ -274,45 +274,43 @@ class _CoinDetailScreenState extends State<CoinDetailScreen> {
 
   Widget _buildImbalanceChip(ChartController chart) {
     final active = chart.showImbalance;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: const ValueKey('toggle_imbalance'),
-        borderRadius: BorderRadius.circular(8),
-        onTap: chart.toggleImbalance,
-        child: Container(
-          height: 40,
-          padding: const EdgeInsets.symmetric(horizontal: 11),
-          decoration: BoxDecoration(
+    return GestureDetector(
+      key: const ValueKey('toggle_imbalance'),
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => chart.toggleImbalance(),
+      onTap: chart.toggleImbalance,
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 11),
+        decoration: BoxDecoration(
+          color: active
+              ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
+              : const Color(0xFF161A22),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
             color: active
-                ? const Color(0xFF00B0FF).withValues(alpha: 0.16)
-                : const Color(0xFF161A22),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: active
-                  ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
-                  : const Color(0xFF262D3D),
+                ? const Color(0xFF00B0FF).withValues(alpha: 0.7)
+                : const Color(0xFF262D3D),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              active ? Icons.layers : Icons.layers_outlined,
+              size: 15,
+              color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                active ? Icons.layers : Icons.layers_outlined,
-                size: 15,
+            const SizedBox(width: 4),
+            Text(
+              'OFIF',
+              style: TextStyle(
                 color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 4),
-              Text(
-                'OFIF',
-                style: TextStyle(
-                  color: active ? const Color(0xFF00B0FF) : const Color(0xFF8B949E),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

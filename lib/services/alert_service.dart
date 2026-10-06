@@ -50,8 +50,9 @@ class AlertService {
               id: (symbol.hashCode ^ milestone.hashCode).abs() % 100000,
             );
 
-            // 2. Telegram Bot Broadcast (cho iPhone & Android)
-            if (config != null &&
+            // 2. Telegram Bot Broadcast (chỉ chạy trên app native Android, trên Web đã có Server Cloud 24/7)
+            if (!kIsWeb &&
+                config != null &&
                 config.telegramEnabled &&
                 config.telegramBotToken.isNotEmpty &&
                 config.telegramChatId.isNotEmpty) {

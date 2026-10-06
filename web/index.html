@@ -67,7 +67,23 @@
         }
       });
     }
+
+    // Auto-update check for iOS Standalone PWA mode
+    if (window.navigator.standalone) {
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+          fetch('index.html?t=' + Date.now(), { cache: 'no-store' })
+            .then(function(res) { return res.text(); })
+            .then(function(html) {
+              var currentScript = document.querySelector('script[src*="flutter_bootstrap.js"]');
+              if (currentScript && html.includes('flutter_bootstrap.js') && !html.includes(currentScript.getAttribute('src'))) {
+                window.location.reload();
+              }
+            }).catch(function() {});
+        }
+      });
+    }
   </script>
-  <script src="flutter_bootstrap.js?v=20261006_V4_FORCE" async></script>
+  <script src="flutter_bootstrap.js?v=20261006_V5_STANDALONE" async></script>
 </body>
 </html>

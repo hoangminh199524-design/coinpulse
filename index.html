@@ -68,7 +68,9 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (let registration of registrations) {
-          registration.unregister();
+          if (registration.active && registration.active.scriptURL.includes('flutter_service_worker.js')) {
+            registration.unregister();
+          }
         }
       });
     }
@@ -89,6 +91,7 @@
       });
     }
   </script>
-  <script src="flutter_bootstrap.js?v=20261006_V6_FIX_OFFSET" async></script>
+  <script src="push_manager.js?v=20261006_V1"></script>
+  <script src="flutter_bootstrap.js?v=20261006_V7_WEBPUSH" async></script>
 </body>
 </html>

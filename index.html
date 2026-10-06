@@ -22,6 +22,10 @@
   <meta name="description" content="Binance 24H Top Gainers Tracker with Realtime Candlestick Chart & Imbalance Detector">
   <meta name="theme-color" content="#121418">
 
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- iOS meta tags & icons for Standalone Web App -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -47,8 +51,15 @@
   </style>
 </head>
 <body>
-  <!-- Unregister old service workers to avoid stale cached builds -->
+  <!-- Aggressively clear old cache and service workers on iPhone / Safari -->
   <script>
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        for (let name of names) {
+          caches.delete(name);
+        }
+      });
+    }
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (let registration of registrations) {
@@ -57,6 +68,6 @@
       });
     }
   </script>
-  <script src="flutter_bootstrap.js?v=20261005_3" async></script>
+  <script src="flutter_bootstrap.js?v=20261006_V4_FORCE" async></script>
 </body>
 </html>
